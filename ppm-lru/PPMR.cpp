@@ -13,7 +13,7 @@ PPMR::PPMR()
     back_queue  = model_root;
     
     node_limit   = -1;
-    order_limit = -1;
+    order_limit = 0;
     
     node_counter = 1;
     leaf_counter = 1;
@@ -106,7 +106,7 @@ double PPMR::next_encoding_size(int i, const std::string& buffer, const std::str
 
 std::string PPMR::get_context_string(int i, int order, const std::string& buffer, const std::string& prev_buffer)
 {
-    if      (order > order_limit && order_limit > 0) return {'\0'};
+    if      (order > order_limit) return {'\0'};
     
     if      (order <= i + 1)            return buffer.substr(i - order + 1, order);
     else if (prev_buffer[0] != '\0')    return prev_buffer.substr(prev_buffer.size() - order + i + 1) + buffer.substr(0, i + 1);
@@ -127,9 +127,7 @@ bool PPMR::find_context(const std::string &context_string, std::vector<ContextNo
     }
     
     context_list.push_back(node);
-    
-    if (node_limit > 0 && node->count == 1) return false;
-    
+        
     return true;
 }
 
