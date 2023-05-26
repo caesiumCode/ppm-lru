@@ -49,6 +49,8 @@ void PPMR::run(const std::string &path, const std::string &file)
     std::string buffer      (BUFFER_SIZE, '\0');
     
     original_size = std::filesystem::file_size(path + file) * 8L;
+    char last_prev = '\0';
+    hand.resize(order_limit+1, nullptr);
     
     // read file
     while (!fin.eof())
@@ -58,7 +60,7 @@ void PPMR::run(const std::string &path, const std::string &file)
         
         for (int i = -1; i < read - 1; i++)
         {
-            double bits = next_encoding_size(i, buffer, prev_buffer);
+            double bits = next_encoding_size(i, last_prev, buffer, prev_buffer);
             encoded_size += bits;
             
             while (node_limit > 0 && node_counter > node_limit)
@@ -66,6 +68,8 @@ void PPMR::run(const std::string &path, const std::string &file)
                 pop_leaf_queue();
                 node_counter--;
             }
+            
+            last_prev = buffer[i+1];
         }
         
         prev_buffer.swap(buffer);
@@ -79,56 +83,33 @@ void PPMR::run(const std::string &path, const std::string &file)
     t_time = std::chrono::duration<double>(END - START).count();
 }
 
-double PPMR::next_encoding_size(int i, const std::string& buffer, const std::string& prev_buffer)
+double PPMR::next_encoding_size(int i, char last_prev, const std::string& buffer, const std::string& prev_buffer)
 {
     bool                        predicted = false;
     double                      bits = 0;
-    std::vector<ContextNode*>   context_list;
     std::unordered_set<char>    exclusion;
     
-    // search all contexts
-    int order = 0;
-    std::string context_string = get_context_string(i, order, buffer, prev_buffer);
-    while (context_string != std::string{'\0'} && find_context(context_string, context_list))
+    // update hand
+    for (int k = (int)hand.size()-1; k > 0; k--)
     {
-        order++;
-        context_string = get_context_string(i, order, buffer, prev_buffer);
+        if (hand[k-1] != nullptr && !hand[k-1]->leaf)
+        {
+            std::unordered_map<char, ContextNode*>::iterator it = hand[k-1]->children.find(last_prev);
+            if (it != hand[k-1]->children.end())    hand[k] = it->second;
+            else                                    hand[k] = nullptr;
+        }
+        
+        else hand[k] = nullptr;
     }
+    hand[0] = model_root;
     
     // Process each context, starting by the longest
-    for (int k = (int)context_list.size()-1; k >= 0; k--) bits += process_context(context_list[k], buffer[i+1], predicted, exclusion);
+    for (int k = order_limit; k >= 0; k--) if (hand[k] != nullptr) bits += process_context(hand[k], buffer[i+1], predicted, exclusion);
         
     if (!predicted) bits += std::log2( 256 - exclusion.size() );
     
     model_root->count++;
     return bits;
-}
-
-std::string PPMR::get_context_string(int i, int order, const std::string& buffer, const std::string& prev_buffer)
-{
-    if      (order > order_limit) return {'\0'};
-    
-    if      (order <= i + 1)            return buffer.substr(i - order + 1, order);
-    else if (prev_buffer[0] != '\0')    return prev_buffer.substr(prev_buffer.size() - order + i + 1) + buffer.substr(0, i + 1);
-    else                                return {'\0'};
-}
-
-bool PPMR::find_context(const std::string &context_string, std::vector<ContextNode*> &context_list)
-{
-    ContextNode* node = model_root;
-    
-    for (std::size_t k = 0; k < context_string.size(); k++)
-    {
-        std::unordered_map<char, ContextNode*>::iterator it = node->children.find(context_string[k]);
-        
-        if (it == node->children.end() || node->leaf) return false;
-        
-        node = it->second;
-    }
-    
-    context_list.push_back(node);
-        
-    return true;
 }
 
 double PPMR::process_context(ContextNode *context, char pred, bool& predicted, std::unordered_set<char>& exclusion)
