@@ -231,7 +231,8 @@ std::string PPMR::stats()
     output += std::to_string(order_limit) + ",";
     output += std::to_string(node_limit) + ",";
     output += std::to_string(encoded_size / original_size * 8.0) + ",";
-    output += std::to_string(node_counter);
+    output += std::to_string(node_counter) + ",";
+    output += std::to_string(t_time);
     
     return output;
 }
