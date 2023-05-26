@@ -80,10 +80,8 @@ private:
     double t_time;
     
 private:
-    std::string get_context_string(int i, int order, const std::string& buffer, const std::string& prev_buffer);
-    bool        find_context(const std::string& context_string, std::vector<ContextNode*>& context_list);
-    double      next_encoding_size(int i, char last_prev, const std::string& buffer, const std::string& prev_buffer);
-    double      process_context(ContextNode* context, char pred, bool& predicted, std::unordered_set<char>& exclusion);
+    double next_encoding_size(int i, char last_prev, const std::string& buffer, const std::string& prev_buffer);
+    double process_context(ContextNode* context, char pred, bool& predicted, std::unordered_set<char>& exclusion);
     
     struct layer
     {

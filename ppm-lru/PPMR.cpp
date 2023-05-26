@@ -112,33 +112,6 @@ double PPMR::next_encoding_size(int i, char last_prev, const std::string& buffer
     return bits;
 }
 
-std::string PPMR::get_context_string(int i, int order, const std::string& buffer, const std::string& prev_buffer)
-{
-    if      (order > order_limit) return {'\0'};
-    
-    if      (order <= i + 1)            return buffer.substr(i - order + 1, order);
-    else if (prev_buffer[0] != '\0')    return prev_buffer.substr(prev_buffer.size() - order + i + 1) + buffer.substr(0, i + 1);
-    else                                return {'\0'};
-}
-
-bool PPMR::find_context(const std::string &context_string, std::vector<ContextNode*> &context_list)
-{
-    ContextNode* node = model_root;
-    
-    for (std::size_t k = 0; k < context_string.size(); k++)
-    {
-        std::unordered_map<char, ContextNode*>::iterator it = node->children.find(context_string[k]);
-        
-        if (it == node->children.end() || node->leaf) return false;
-        
-        node = it->second;
-    }
-    
-    context_list.push_back(node);
-        
-    return true;
-}
-
 double PPMR::process_context(ContextNode *context, char pred, bool& predicted, std::unordered_set<char>& exclusion)
 {
     double bits = 0;
@@ -239,7 +212,8 @@ std::string PPMR::stats()
     output += std::to_string(order_limit) + ",";
     output += std::to_string(node_limit) + ",";
     output += std::to_string(encoded_size / original_size * 8.0) + ",";
-    output += std::to_string(node_counter);
+    output += std::to_string(node_counter) + ",";
+    output += std::to_string(t_time);
     
     return output;
 }
@@ -327,7 +301,7 @@ void PPMR::pop_leaf_queue()
     delete node;
     
     // Update former parent's status
-    if (parent->children.empty()) push_back_leaf_queue(parent);
+    if (parent->children.empty()) push_front_leaf_queue(parent);
 }
 
 void PPMR::remove_leaf_queue(ContextNode* node)
